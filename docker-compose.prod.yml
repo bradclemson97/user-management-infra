@@ -1,0 +1,147 @@
+name: user-management-prod
+
+services:
+
+  postgres:
+    image: postgres:15
+    container_name: userdb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d userdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    restart: unless-stopped
+    command: start
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: userdb
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: app.bradleyclemson.com
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KC_PROXY: edge
+      KC_HOSTNAME_STRICT: "false"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      # Bind to loopback only — Nginx on the host proxies via 127.0.0.1:9000
+      - "127.0.0.1:9000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/realms/master || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - app-network
+
+  user-management-service:
+    image: user-management-service:latest
+    container_name: ums
+    restart: unless-stopped
+    build:
+      context: ../user-management-service
+    environment:
+      DB_HOST: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER_URI: https://app.bradleyclemson.com/realms/system
+      ACM_URL: http://access-control-manager:8130
+      KEYCLOAK_MANAGER_URL: http://keycloak-manager:8210
+    extra_hosts:
+      - "app.bradleyclemson.com:host-gateway"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  access-control-manager:
+    image: access-control-manager:latest
+    container_name: acm
+    restart: unless-stopped
+    build:
+      context: ../access-control-manager
+    environment:
+      DB_HOST: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER_URI: https://app.bradleyclemson.com/realms/system
+      ACM_URL: http://access-control-manager:8130
+    extra_hosts:
+      - "app.bradleyclemson.com:host-gateway"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  keycloak-manager:
+    image: keycloak-manager:latest
+    container_name: km
+    restart: unless-stopped
+    build:
+      context: ../keycloak-manager
+    environment:
+      KEYCLOAK_AUTH_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER_URI: https://app.bradleyclemson.com/realms/system
+      KEYCLOAK_MANAGER_SECRET: ${KEYCLOAK_MANAGER_SECRET}
+    extra_hosts:
+      - "app.bradleyclemson.com:host-gateway"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  user-management-ui:
+    image: user-management-ui:latest
+    container_name: ui
+    restart: unless-stopped
+    build:
+      context: ../user-management-ui
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      APP_BASE_URL: https://app.bradleyclemson.com
+      SESSION_SECRET: ${SESSION_SECRET}
+      KEYCLOAK_BASE_URL: https://app.bradleyclemson.com
+      KEYCLOAK_REALM: system
+      KEYCLOAK_CLIENT_ID: user-management-ui
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      UMS_BASE_URL: http://user-management-service:8080
+      ACM_BASE_URL: http://access-control-manager:8130
+      KM_BASE_URL: http://keycloak-manager:8210
+    extra_hosts:
+      - "app.bradleyclemson.com:host-gateway"
+    depends_on:
+      - user-management-service
+      - access-control-manager
+      - keycloak-manager
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
