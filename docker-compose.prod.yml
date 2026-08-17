@@ -84,6 +84,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       KEYCLOAK_ISSUER_URI: https://app.bradleyclemson.com/realms/system
       ACM_URL: http://access-control-manager:8130
+      KM_URL: http://keycloak-manager:8210
     extra_hosts:
       - "app.bradleyclemson.com:host-gateway"
     depends_on:
