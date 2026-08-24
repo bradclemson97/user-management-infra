@@ -38,6 +38,8 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak-theme:/opt/keycloak/themes:ro
     ports:
       # Bind to loopback only — Nginx on the host proxies via 127.0.0.1:9000
       - "127.0.0.1:9000:8080"
