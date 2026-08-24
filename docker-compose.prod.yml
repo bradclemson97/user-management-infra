@@ -38,6 +38,8 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak-theme:/opt/keycloak/themes:ro
     ports:
       # Bind to loopback only — Nginx on the host proxies via 127.0.0.1:9000
       - "127.0.0.1:9000:8080"
@@ -84,6 +86,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       KEYCLOAK_ISSUER_URI: https://app.bradleyclemson.com/realms/system
       ACM_URL: http://access-control-manager:8130
+      KM_URL: http://keycloak-manager:8210
     extra_hosts:
       - "app.bradleyclemson.com:host-gateway"
     depends_on:

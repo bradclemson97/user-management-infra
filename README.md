@@ -208,7 +208,7 @@ Expected containers: `userdb`, `keycloak`, `ums`, `acm`, `km`, `ui`.
 
 Open `https://app.bradleyclemson.com/admin` and log in with the admin credentials from `.env.prod`.
 
-Follow the same realm setup steps documented in the main project README (sections 9.1–9.9) to recreate the `system` realm, clients, groups, and superuser. The key difference from local setup is that all redirect URIs should use `https://app.bradleyclemson.com` instead of `http://localhost:3000`.
+Follow the same realm setup steps documented in the main project README (sections 9.1–10.0) to recreate the `system` realm, clients, groups, and superuser. The key difference from local setup is that all redirect URIs should use `https://app.bradleyclemson.com` instead of `http://localhost:3000`.
 
 After creating the `system-manager-service` and `user-management-ui` clients, copy their client secrets back into `.env.prod` and redeploy:
 
