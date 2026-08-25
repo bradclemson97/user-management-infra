@@ -302,3 +302,43 @@ Old Docker images accumulate over time. Clean up with:
 docker image prune -f
 docker volume prune -f   # WARNING: removes unused volumes — do not use if postgres_data is unmounted
 ```
+
+## reset-users.sh 
+
+**Local**
+
+Run from the user-management-infra directory — the defaults match your local docker-compose setup:
+
+```bash
+cd /path/to/user-management-infra                                                                                                                                                    
+./scripts/reset-users.sh
+```
+
+**Production**
+
+SSH into the server first, then run the script with your production credentials. The KC_URL stays as the internal container URL — kcadm.sh runs inside the container so it doesn't go
+through Nginx.
+
+# 1. SSH into the server
+```bash
+ssh user@app.bradleyclemson.com
+```
+
+# 2. Navigate to the infra repo
+```bash
+cd /path/to/user-management-infra
+```
+
+# 3. Run with production credentials
+```bash
+KC_ADMIN=admin \                                                                                                                                                                     
+KC_ADMIN_PASSWORD=<your-keycloak-admin-password> \                                                                                                                                   
+KC_URL=http://localhost:8080 \                                                                                                                                                       
+./scripts/reset-users.sh
+```
+If the infra repo isn't on the server, copy just the script up first:
+```bash
+scp scripts/reset-users.sh user@app.bradleyclemson.com:/tmp/reset-users.sh                                                                                                           
+ssh user@app.bradleyclemson.com "chmod +x /tmp/reset-users.sh && KC_ADMIN=admin KC_ADMIN_PASSWORD=<password> /tmp/reset-users.sh"
+```
+The Keycloak admin password is whatever you set as KEYCLOAK_ADMIN_PASSWORD in your production .env file on the server
