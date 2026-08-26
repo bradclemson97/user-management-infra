@@ -34,9 +34,9 @@ All six services (postgres, keycloak, ums, acm, km, ui) run in Docker containers
 
 ```
 user-management-infra/
-├── docker-compose.yml          # Local development (postgres + keycloak only — unchanged)
+├── docker-compose.yml          # Local development (postgres, keycloak, keycloak-manager)
 ├── docker-compose.prod.yml     # Production (all six services)
-├── .env.prod.example           # Template for production secrets
+├── .env.prod.example           # Template for production secrets — copy to .env.prod
 ├── nginx/
 │   └── app.conf                # Nginx server block for app.bradleyclemson.com
 ├── scripts/
@@ -216,6 +216,8 @@ After creating the `system-manager-service` and `user-management-ui` clients, co
 ./scripts/deploy.sh
 ```
 
+> **Protocol mappers are created automatically.** Once the `keycloak-manager` container is running and healthy, its `RealmSetupService` creates the `capabilities` and `systemRoles` user-attribute protocol mappers in the `system` realm's `roles` (or `profile`) client scope. You do not need to create these manually in the Keycloak admin console — check `docker logs km` to confirm they were registered on first boot.
+
 ---
 
 ### 8. Verify
@@ -270,13 +272,28 @@ docker exec -it userdb psql -U postgres -d userdb
 
 ## Local development
 
-Local development is unchanged. From the infra repo root:
+From the infra repo root:
 
 ```bash
-docker-compose up -d   # starts postgres and keycloak only
+docker-compose up -d   # starts postgres, keycloak, and keycloak-manager
 ```
 
-Then start each service locally as before (IntelliJ / `mvn spring-boot:run` / `npm run dev`).
+`keycloak-manager` is included in the local compose because its `@PostConstruct` hook creates the Keycloak protocol mappers required for JWT permissions embedding. Without it, `capabilities` and `systemRoles` claims will be absent from access tokens and all API requests will fall back to a live ACM call for each authentication.
+
+Then start each service locally from your IDE or CLI:
+
+```bash
+# Terminal 1
+cd ../user-management-service && ./mvnw spring-boot:run
+
+# Terminal 2
+cd ../access-control-manager && ./mvnw spring-boot:run
+
+# Terminal 3
+cd ../user-management-ui && npm run dev
+```
+
+Each Spring service exposes a Swagger UI at `GET /v1/docs` (e.g. `http://localhost:8080/v1/docs` for UMS, `http://localhost:8130/v1/docs` for ACM, `http://localhost:8210/v1/docs` for KM).
 
 ---
 
