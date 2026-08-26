@@ -52,6 +52,24 @@ echo "==> Deleting non-superuser records from postgres..."
 docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -v superuser="$SUPERUSER_UUID" <<'SQL'
 BEGIN;
 
+-- History tables must be cleared before the live tables to avoid FK issues
+-- and to remove any audit records that were written when rows were previously deleted.
+DELETE FROM user_management.users_history
+WHERE system_user_id::text != :'superuser';
+
+DELETE FROM user_management.user_details_history
+WHERE usr_id IN (
+  SELECT usr_id FROM user_management.users
+  WHERE system_user_id::text != :'superuser'
+);
+
+DELETE FROM access_control.user_roles_history
+WHERE usr_id IN (
+  SELECT usr_id FROM access_control.users
+  WHERE system_user_id::text != :'superuser'
+);
+
+-- Now delete the live records (triggers will fire but history has already been cleared)
 DELETE FROM user_management.user_details
 WHERE usr_id IN (
   SELECT usr_id FROM user_management.users
