@@ -39,5 +39,33 @@ services:
       retries: 10
       start_period: 30s
 
+  # keycloak-manager runs alongside Keycloak because its @PostConstruct creates the
+  # protocol mappers required for JWT permissions embedding. Run ACM, UMS, and the UI
+  # from your IDE — only postgres, keycloak, and km need Docker for local dev.
+  keycloak-manager:
+    build:
+      context: ../keycloak-manager
+    container_name: km
+    ports:
+      - "8210:8210"
+    environment:
+      KEYCLOAK_AUTH_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER_URI: http://localhost:9000/realms/system
+      KEYCLOAK_REALM: system
+      KEYCLOAK_MANAGER_CLIENT: system-manager-service
+      KEYCLOAK_MANAGER_SECRET: ${KEYCLOAK_MANAGER_SECRET:-gFdj5TMLFvvscCs5tVoFH6HrhjWrOAZE}
+      USER_MANAGER_URL: http://host.docker.internal:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8210/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres_data:
